@@ -770,7 +770,13 @@ pfUI:RegisterModule("nameplates", "vanilla:tbc", function ()
       plate.health.text:SetText()
     end
 
-    local r, g, b, a = unpack(unitcolors[unittype])
+    -- Custom name-based color logic
+    local r, g, b, a
+    if customNameColors[name] and unittype == "ENEMY_NPC" then
+      r, g, b, a = customNameColors[name].r, customNameColors[name].g, customNameColors[name].b, customNameColors[name].a
+    else
+      r, g, b, a = unpack(unitcolors[unittype])
+    end   
 
     if unittype == "ENEMY_PLAYER" and C.nameplates["enemyclassc"] == "1" and class and RAID_CLASS_COLORS[class] then
       r, g, b, a = RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1
