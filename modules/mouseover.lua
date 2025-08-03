@@ -1,93 +1,124 @@
-pfUI:RegisterModule("mouseover", "vanilla", function ()
-  pfUI.uf.mouseover = CreateFrame("Frame", "pfMouseOver", UIParent)
+pfUI:RegisterModule("focus", "vanilla:tbc", function ()
+  -- do not go further on disabled UFs
+  if C.unitframes.disable == "1" then return end
 
-  -- Prepare a list of units that can be used via SpellTargetUnit
-  local st_units = { [1] = "player", [2] = "target", [3] = "mouseover" }
-  for i=1, MAX_PARTY_MEMBERS do table.insert(st_units, "party"..i) end
-  for i=1, MAX_RAID_MEMBERS do table.insert(st_units, "raid"..i) end
+  pfUI.uf.focus = pfUI.uf:CreateUnitFrame("Focus", nil, C.unitframes.focus, .2)
+  pfUI.uf.focus:UpdateFrameSize()
+  pfUI.uf.focus:SetPoint("BOTTOMLEFT", UIParent, "BOTTOM", 220, 220)
+  UpdateMovable(pfUI.uf.focus)
+  pfUI.uf.focus:Hide()
 
-  -- Try to find a valid (friendly) unitstring that can be used for
-  -- SpellTargetUnit(unit) to avoid another target switch
-  local function GetUnitString(unit)
-    for index, unitstr in pairs(st_units) do
-      if UnitIsUnit(unit, unitstr) then
-        return unitstr
+  pfUI.uf.focustarget = pfUI.uf:CreateUnitFrame("FocusTarget", nil, C.unitframes.focustarget, .2)
+  pfUI.uf.focustarget:UpdateFrameSize()
+  pfUI.uf.focustarget:SetPoint("BOTTOMLEFT", pfUI.uf.focus, "TOP", 0, 10)
+  UpdateMovable(pfUI.uf.focustarget)
+  pfUI.uf.focustarget:Hide()
+end)
+
+-- register focus emulation commands for vanilla
+if pfUI.client > 11200 then return end
+SLASH_PFFOCUS1, SLASH_PFFOCUS2 = '/focus', '/pffocus'
+function SlashCmdList.PFFOCUS(msg)
+  if not pfUI.uf or not pfUI.uf.focus then return end
+
+  if msg ~= "" then
+    pfUI.uf.focus.unitname = strlower(msg)
+  elseif UnitName("target") then
+    pfUI.uf.focus.unitname = strlower(UnitName("target"))
+  else
+    pfUI.uf.focus.unitname = nil
+    pfUI.uf.focus.label = nil
       end
     end
 
-    return nil
-  end
+-- New command: /pfmfocus for mouseover focus
+SLASH_PFMFOCUS1, SLASH_PFMFOCUS2 = '/pfmfocus', '/pfmousefocus'
+function SlashCmdList.PFMFOCUS(msg)
+  if not pfUI.uf or not pfUI.uf.focus then return end
 
-  -- Same as CastSpellByName but with disabled AutoSelfCast
-  local function NoSelfCast(spell, onself)
-    local cvar_selfcast = GetCVar("AutoSelfCast")
+  local unit = "mouseover"
 
-    if cvar_selfcast ~= "0" then
-      SetCVar("AutoSelfCast", "0")
-      pcall(CastSpellByName, spell, onself)
-      SetCVar("AutoSelfCast", cvar_selfcast)
+  -- Set focus based on mouseover or fallback to target
+  if UnitExists(unit) then
+    pfUI.uf.focus.unitname = strlower(UnitName(unit))
+  elseif UnitName("target") then
+    pfUI.uf.focus.unitname = strlower(UnitName("target"))
     else
-      CastSpellByName(spell, onself)
+    pfUI.uf.focus.unitname = nil
+    pfUI.uf.focus.label = nil
     end
   end
 
-  _G.SLASH_PFCAST1, _G.SLASH_PFCAST2 = "/pfcast", "/pfmouse"
-  function SlashCmdList.PFCAST(msg)
-    local restore_target = true
-    local func = loadstring(msg or "")
-    local unit = "mouseover"
+SLASH_PFCLEARFOCUS1, SLASH_PFCLEARFOCUS2 = '/clearfocus', '/pfclearfocus'
+function SlashCmdList.PFCLEARFOCUS(msg)
+  if pfUI.uf and pfUI.uf.focus then
+    pfUI.uf.focus.unitname = nil
+    pfUI.uf.focus.label = nil
+    pfUI.uf.focus.id = nil
+  end
 
-    if not UnitExists(unit) then
-      local frame = GetMouseFocus()
-      if frame.label and frame.id then
-        unit = frame.label .. frame.id
-      elseif UnitExists("target") then
-        unit = "target"
-      elseif GetCVar("autoSelfCast") == "1" then
-        unit = "player"
-      else
-        return
+  if pfUI.uf and pfUI.uf.focustarget then
+    pfUI.uf.focustarget.unitname = nil
+    pfUI.uf.focustarget.label = nil
+    pfUI.uf.focustarget.id = nil
       end
     end
 
-    -- If target and mouseover are friendly units, we can't use spell target as it
-    -- would cast on the target instead of the mouseover. However, if the mouseover
-    -- is friendly and the target is not, we can try to obtain the best unitstring
-    -- for the later SpellTargetUnit() call.
-    local unitstr = not UnitCanAssist("player", "target") and UnitCanAssist("player", unit) and GetUnitString(unit)
+SLASH_PFCASTFOCUS1, SLASH_PFCASTFOCUS2 = '/castfocus', '/pfcastfocus'
+function SlashCmdList.PFCASTFOCUS(msg)
+  if not pfUI.uf.focus or not pfUI.uf.focus:IsShown() then
+    UIErrorsFrame:AddMessage(SPELL_FAILED_BAD_TARGETS, 1, 0, 0)
+    return
+  end
 
-    if UnitIsUnit("target", unit) or (not func and unitstr) then
-      -- no target change required, we can either use spell target
-      -- or the unit is already our current target.
-      restore_target = false
+  local skiptarget = false
+  local player = UnitIsUnit("target", "player")
+  local unitname = ""
+
+  if pfUI.uf.focus.label and UnitIsUnit("target", pfUI.uf.focus.label .. pfUI.uf.focus.id) then
+    skiptarget = true
+  else
+    pfScanActive = true
+    if pfUI.uf.focus.label and pfUI.uf.focus.id then
+      unitname = UnitName(pfUI.uf.focus.label .. pfUI.uf.focus.id)
+      TargetUnit(pfUI.uf.focus.label .. pfUI.uf.focus.id)
     else
-      -- The spelltarget can't be used here, we need to switch
-      -- and restore the target during spell cast
-      TargetUnit(unit)
+      unitname = pfUI.uf.focus.unitname
+      TargetByName(pfUI.uf.focus.unitname, true)
     end
 
+    if strlower(UnitName("target")) ~= strlower(unitname) then
+      pfScanActive = nil
+      TargetLastTarget()
+      UIErrorsFrame:AddMessage(SPELL_FAILED_BAD_TARGETS, 1, 0, 0)
+      return
+    end
+  end
+
+  local func = loadstring(msg or "")
     if func then
       func()
     else
-      -- write temporary unit name
-      pfUI.uf.mouseover.unit = unit
+    CastSpellByName(msg)
+  end
 
-      -- cast without self cast cvar setting
-      -- to allow spells to use spelltarget
-      NoSelfCast(msg)
-
-      -- set spell target to unitstring (or selfcast)
-      if SpellIsTargeting() then SpellTargetUnit(unitstr or "player") end
-
-      -- clean up spell target in error case
-      if SpellIsTargeting() then SpellStopTargeting() end
-
-      -- remove temporary mouseover unit
-      pfUI.uf.mouseover.unit = nil
-    end
-
-    if restore_target then
+  if skiptarget == false then
+    pfScanActive = nil
+    if player then
+      TargetUnit("player")
+    else
       TargetLastTarget()
     end
   end
-end)
+end
+
+SLASH_PFSWAPFOCUS1, SLASH_PFSWAPFOCUS2 = '/swapfocus', '/pfswapfocus'
+function SlashCmdList.PFSWAPFOCUS(msg)
+  if not pfUI.uf or not pfUI.uf.focus then return end
+
+  local oldunit = UnitExists("target") and strlower(UnitName("target"))
+  if oldunit and pfUI.uf.focus.unitname then
+    TargetByName(pfUI.uf.focus.unitname)
+    pfUI.uf.focus.unitname = oldunit
+  end
+end

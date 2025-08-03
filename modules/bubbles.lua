@@ -56,8 +56,8 @@ pfUI:RegisterModule("bubbles", "vanilla:tbc", function ()
 
           CreateBackdrop(f.frame, nil, nil, alpha)
           CreateBackdropShadow(f.frame)
-          f.frame.backdrop:SetPoint("TOPLEFT", f, "TOPLEFT", -10, -10)
-          f.frame.backdrop:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 10, 10)
+          f.frame:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 30)
+          f.frame:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 50)
 
           pfUI.bubbles:ProcessBubble(f)
 

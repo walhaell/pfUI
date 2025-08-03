@@ -22,6 +22,9 @@ pfUI:RegisterModule("nameplates", "vanilla:tbc", function ()
     ["NONE"]     = { r = .2, g = .2, b = .2, a = 1 },
   }
 
+  local customNameColors = {
+    ["Draenei Netherwalker"] = { r = 0, g = 0.5, b = 1, a = 1 }, -- Blue Credit to Ahrkon
+  }							
   local elitestrings = {
     ["elite"] = "+",
     ["rareelite"] = "R+",
@@ -530,7 +533,7 @@ pfUI:RegisterModule("nameplates", "vanilla:tbc", function ()
 
     nameplate:SetWidth(plate_width)
     nameplate:SetHeight(plate_height)
-    nameplate:SetPoint("TOP", parent, "TOP", 0, 0)
+    nameplate:SetPoint("TOP", parent, "TOP", 0, 35)
 
     nameplate.name:SetFont(font, font_size, font_style)
 
@@ -543,7 +546,7 @@ pfUI:RegisterModule("nameplates", "vanilla:tbc", function ()
 
     CreateBackdrop(nameplate.health, default_border)
 
-    nameplate.health.text:SetFont(font, font_size - 2, "OUTLINE")
+    nameplate.health.text:SetFont(font, font_size - 2.5, "OUTLINE")
     nameplate.health.text:SetJustifyH(C.nameplates.hptextpos)
 
     nameplate.guild:SetFont(font, font_size, font_style)

@@ -2517,7 +2517,11 @@ function pfUI.uf:GetStatusValue(unit, pos)
   elseif config == "healthmax" then
     return unit:GetColor("health") .. pfUI.api.Abbreviate(rhpmax)
   elseif config == "healthperc" then
-    return unit:GetColor("health") .. ceil(hp / hpmax * 100)
+	local healthPercentage = ceil(hp / hpmax * 100)
+    local numLineBreaks = 2 -- Ajusta este valor según sea necesario
+    local lineBreaks = "\n" .. string.rep("\n", numLineBreaks)
+    -- Agrega varios saltos de línea después del porcentaje de vida para moverlo hacia abajo
+    return unit:GetColor("health") .. healthPercentage .. "%" .. lineBreaks
   elseif config == "healthmiss" then
     local health = ceil(rhp - rhpmax)
     if UnitIsDead(unitstr) then
